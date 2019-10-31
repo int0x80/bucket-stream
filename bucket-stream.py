@@ -128,15 +128,23 @@ class BucketQueue(Queue):
 class BucketWorker(Thread):
     def __init__(self, q, *args, **kwargs):
         self.q = q
-        self.use_aws = CONFIG["aws_access_key"] and CONFIG["aws_secret"]
-
-        if self.use_aws:
+        self.use_aws = True
+        if CONFIG["aws_access_key"] and CONFIG["aws_secret"]:
             self.session = Session(
                 aws_access_key_id=CONFIG["aws_access_key"], aws_secret_access_key=CONFIG["aws_secret"]).resource("s3")
+
+        # boto3 is resilient in finding creds and does not require them passed in to the Session() call
+        # let boto3 try to create a session without needing creds in the config.yaml, and fall back to
+        # HTTP requests if that fails
         else:
-            self.session = requests.Session()
-            self.session.mount(
-                "http://", HTTPAdapter(pool_connections=ARGS.threads, pool_maxsize=QUEUE_SIZE, max_retries=0))
+            self.session = Session().resource("s3")
+            if self.session.meta.client.meta.region_name:
+                pass
+            else:
+                self.use_aws = False
+                self.session = requests.Session()
+                self.session.mount(
+                    "http://", HTTPAdapter(pool_connections=ARGS.threads, pool_maxsize=QUEUE_SIZE, max_retries=0))
 
         super().__init__(*args, **kwargs)
 
@@ -285,14 +293,6 @@ def main():
 
     parser.parse_args(namespace=ARGS)
     logging.disable(logging.WARNING)
-
-    if not CONFIG["aws_access_key"] or not CONFIG["aws_secret"]:
-        cprint("It is highly recommended to enter AWS keys in config.yaml otherwise you will be severely rate limited!"\
-               "You might want to run with --ignore-rate-limiting", "red")
-
-        if ARGS.threads > 5:
-            cprint("No AWS keys, reducing threads to 5 to help with rate limiting.", "red")
-            ARGS.threads = 5
 
     THREADS = list()
 
