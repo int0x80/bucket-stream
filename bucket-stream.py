@@ -228,7 +228,7 @@ class BucketWorker(Thread):
         FOUND_COUNT += 1
 
         if ARGS.log_to_file:
-            with open("buckets.log", "a+") as log:
+            with open("/data/buckets.log", "a+") as log:
                 log.write("%s%s" % (new_bucket_url, os.linesep))
 
     def __output(self, line, color=None):
@@ -285,7 +285,7 @@ def main():
     parser.add_argument("--ignore-rate-limiting", action="store_true", dest="ignore_rate_limiting", default=False,
                         help="If you ignore rate limits not all buckets will be checked")
     parser.add_argument("-l", "--log", dest="log_to_file", default=False, action="store_true",
-                        help="Log found buckets to a file buckets.log")
+                        help="Log found buckets to a file /data/buckets.log")
     parser.add_argument("-s", "--source", dest="source", default=None,
                         help="Data source to check for bucket permutations. Uses certificate transparency logs if not specified.")
     parser.add_argument("-p", "--permutations", dest="permutations", default="permutations/default.txt",
